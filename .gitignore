@@ -3,5 +3,5 @@
 .Rhistory
 .Rproj.user
 .gitignore
-data
-.data
+Data
+.Data
