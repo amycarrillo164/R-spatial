@@ -2,4 +2,6 @@
 .Rdata
 .Rhistory
 .Rproj.user
+.gitignore
 data
+.data
