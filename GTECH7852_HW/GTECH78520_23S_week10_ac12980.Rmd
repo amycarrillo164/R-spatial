@@ -5,7 +5,7 @@ date: "4-21-2023"
 output: html_document
 ---
 
-libraries
+### Download libraries:
 ```{r}
 library(sf)
 library(tidyverse)
@@ -15,13 +15,13 @@ library(mapview)
 
 ```
 
-## Step 2. Read the NYC postal areas in Shapefiles into sf objects. As NYC DOH publishes COVID-19 data by zip code, we will utilize the postal area data later.
+## Step 2. 
+### Read the NYC postal areas in Shapefiles into sf objects. As NYC DOH publishes COVID-19 data by zip code, we will utilize the postal area data later.
 
 ```{r}
 # Set working directory
 wd <- dirname(rstudioapi::getActiveDocumentContext()$path)
 setwd(wd)
-
 ```
 
 ```{r}
@@ -29,7 +29,8 @@ setwd(wd)
 zipcode <- st_read("Data/HW_Data/ZIP_CODE_040114.shp")
 ```
 
-## sTEP 3. Read and process the NYS health facilities spreadsheet data. Create sf objects from geographic coordinates.
+## Step 3 
+### Read and process the NYS health facilities spreadsheet data. Create sf objects from geographic coordinates.
 
 ```{r}
 # Add NYC health facilties data (points)
@@ -74,7 +75,8 @@ view(NYC_HealthFacilties_SF)
 ```
 
 
-## Step 4. Read and process the NYS retail food stores data. Create sf objects from geographic coordinates for NYC.
+## Step 4. 
+### Read and process the NYS retail food stores data. Create sf objects from geographic coordinates for NYC.
 
 ```{r}
 # Add NYC food retails store data (points)
@@ -101,25 +103,23 @@ st_crs(food_retailsNY_SF) <- 4326
 
 ```
 
-## Step 5. Use simple mapping method, either based on ggmap+ggplot or mapview, with a basemap to verify the above datasets in terms of their geometry locations
+## Step 5. 
+### Use simple mapping method, either based on ggmap+ggplot or mapview, with a basemap to verify the above datasets in terms of their geometry locations
 
-### Zip codes for NYC map
-
+Zip codes for NYC map
 ```{r}
 mapview(zipcode, zcol = "COUNTY")
 
 ```
 
 
-## Food Retail Map
-
+### Food Retail Map
 ```{r}
 mapview(food_retailsNY_SF)
 
 ```
 
-## Health Facilties Map
-
+### Health Facilties Map
 ```{r}
 NYC_HF_SF2 <- NYC_HealthFacilties_SF %>%
   filter(facility_latitude > "0.00000")
@@ -132,22 +132,17 @@ STEP 7: Save the three sf objects in a RData file or in a single GeoPackage file
 
 ```{r}
 #save as a RData file
-saveRDS(NYC_HealthFacilties_SF, "GTECH7852_HW/HW10_Outputs/NYC_HealthFacilties_SF.rds")
-saveRDS(food_retailsNY_SF, "GTECH7852_HW/Data/HW10_Outputs/NYC_FoodRetail_SF.rds")
-saveRDS(zipcode, "GTECH7852_Data/HW10_Outputs/NYC_Zipcode_SF.rds")
+saveRDS(NYC_HealthFacilties_SF, "HW10_Outputs/NYC_HealthFacilties_SF.rds")
+saveRDS(food_retailsNY_SF, "HW10_Outputs/NYC_FoodRetail_SF.rds")
+saveRDS(zipcode, "HW10_Outputs/NYC_Zipcode_SF.rds")
 
 ```
 
 ```{r}
 # Save as a GeoPackage file
-st_write(NYC_HealthFacilties_SF, "GTECH7852_Data/HW10_Outputs/HW10.gpkg", "NYC_HealthFacilties_SF")
-st_write(food_retailsNY_SF, "GTECH7852_Data/HW10_Outputs/HW_Outputs.gpkg", "NYC_FoodRetail_SF")
-st_write(zipcode, "GTECH7852_Data/HW10_Outputs/HW10.gpkg", "NYC_Zipcode_SF")
+st_write(NYC_HealthFacilties_SF, "HW10_Outputs/HW10.gpkg", "NYC_HealthFacilties_SF")
+st_write(food_retailsNY_SF, "HW10_Outputs/HW_Outputs.gpkg", "NYC_FoodRetail_SF")
+st_write(zipcode, "HW10_Outputs/HW10.gpkg", "NYC_Zipcode_SF")
 
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. 
