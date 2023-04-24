@@ -26,14 +26,14 @@ setwd(wd)
 
 ```{r}
 # add NYC zip code shapefile
-zipcode <- st_read("data/hw_data/ZIP_CODE_040114.shp")
+zipcode <- st_read("Data/HW_Data/ZIP_CODE_040114.shp")
 ```
 
 ## sTEP 3. Read and process the NYS health facilities spreadsheet data. Create sf objects from geographic coordinates.
 
 ```{r}
 # Add NYC health facilties data (points)
-HealthFacilties_data <- read.csv("data/hw_data/NYS_Health_Facility.csv")
+HealthFacilties_data <- read.csv("Data/HW_Data/NYS_Health_Facility.csv")
 
 # Clean data
 HealthFacilties_data <- clean_names(HealthFacilties_data)
@@ -78,7 +78,7 @@ view(NYC_HealthFacilties_SF)
 
 ```{r}
 # Add NYC food retails store data (points)
-food_retails_xy <- read.csv("data/hw_data/nys_retail_food_store_xy.csv", fileEncoding = "Latin1", check.names = F)
+food_retails_xy <- read.csv("Data/HW_Data/nys_retail_food_store_xy.csv", fileEncoding = "Latin1", check.names = F)
 
 # Clean data
 food_retails_xy <- clean_names(food_retails_xy)
@@ -132,17 +132,17 @@ STEP 7: Save the three sf objects in a RData file or in a single GeoPackage file
 
 ```{r}
 #save as a RData file
-saveRDS(NYC_HealthFacilties_SF, "data/SF/NYC_HealthFacilties_SF.rds")
-saveRDS(food_retailsNY_SF, "data/SF/NYC_FoodRetail_SF.rds")
-saveRDS(zipcode, "data/SF/NYC_Zipcode_SF.rds")
+saveRDS(NYC_HealthFacilties_SF, "GTECH7852_HW/HW10_Outputs/NYC_HealthFacilties_SF.rds")
+saveRDS(food_retailsNY_SF, "GTECH7852_HW/Data/HW10_Outputs/NYC_FoodRetail_SF.rds")
+saveRDS(zipcode, "GTECH7852_Data/HW10_Outputs/NYC_Zipcode_SF.rds")
 
 ```
 
 ```{r}
 # Save as a GeoPackage file
-st_write(NYC_HealthFacilties_SF, "data/HW10.gpkg", "NYC_HealthFacilties_SF")
-st_write(food_retailsNY_SF, "data/HW10.gpkg", "NYC_FoodRetail_SF")
-st_write(zipcode, "data/HW10.gpkg", "NYC_Zipcode_SF")
+st_write(NYC_HealthFacilties_SF, "GTECH7852_Data/HW10_Outputs/HW10.gpkg", "NYC_HealthFacilties_SF")
+st_write(food_retailsNY_SF, "GTECH7852_Data/HW10_Outputs/HW_Outputs.gpkg", "NYC_FoodRetail_SF")
+st_write(zipcode, "GTECH7852_Data/HW10_Outputs/HW10.gpkg", "NYC_Zipcode_SF")
 
 ```
 
