@@ -1,0 +1,160 @@
+---
+title: "GTECH78520_23S_week11_ac12980"
+author: "Amy Carrillo"
+date: "4-21-2023"
+output: html_document
+---
+
+libraries
+```{r}
+library(sf)
+library(tidyverse)
+library(janitor)
+library(stringr)
+library(mapview)
+
+```
+
+## Step 1. Join the COVID-19 data to the NYC zip code area data (sf or sp polygons).
+
+```{r}
+# Set working directory
+wd <- dirname(rstudioapi::getActiveDocumentContext()$path)
+setwd(wd)
+
+```
+
+```{r}
+# add NYC zip code shapefile
+zipcode <- st_read("data/hw_data/ZIP_CODE_040114.shp")
+str(zipcode)
+
+```
+## STEP 2.Aggregate the NYC food retails store data (points) to the zip code data, so that we know how many retail stores in each zip code area. Note that not all locations are for food retail. And we need to choose the specific types according to the data.
+
+```{r}
+# Add NYC food retails store data (points)
+food_retails_xy <- read.csv("data/hw_data/nys_retail_food_store_xy.csv", fileEncoding = "Latin1", check.names = F)
+
+# Clean data
+food_retails_xy <- clean_names(food_retails_xy)
+
+food_retails_NY <- food_retails_xy %>%
+  filter(zip_code > 7000) %>%
+  filter(i_county %in% c("Bronx", "Kings","Queens", "New York","Richmond")) %>%
+  filter(!is.na(x)) %>%
+  filter(!is.na(y))
+
+```
+
+
+```{r}
+# Turning csv into sf. Process the location column using stringr
+st_as_sf(food_retails_NY %>% tidyr::drop_na(x, y), coords = c('x', 'y')) -> food_retailsNY_SF
+
+# Assign coordinate system
+st_crs(food_retailsNY_SF) <- 4326
+
+```
+
+Side Note: Establishment codes. https://data.ny.gov/Economic-Development/Retail-Food-Stores/9a8c-vfzj
+            C = Food manufacturer.
+
+```{r}
+# Filter the data to only food retails
+ET = c("JAC", "JABC", "JABCP", "JACDK", "JABCDP", "JACD","JACFS", "JABCHK", "JACHK", "JABCK", "JACK", "JACDHK", "JACH", "JACDE", "JABCH", "JABCDH", "JABCD", "JACE", "JACI", "JACO ", "JACDH", "JABCG", "JACV", "JABCOP", "JAK ", "JACL", "JACG", "JABCDK", "JACZ", "JACW", "JCA", "JACDKM", "JABCGP", "JACN", "JABCKO", "JABCW", "JACDIK", "JACS", "JABCO", "JACDG", "JACP", "JABCHO", "JACHOP", "JACHO", "JACEW", "JDAC", "JKDAC", "JACHKO", "JACEK")
+
+# First trim off the extra white space in establishment_type columns
+food_retailNY_SF2 <- food_retailsNY_SF %>% 
+  mutate(across(where(is.character), str_trim))
+  
+food_retailNY_SF3 <- food_retailNY_SF2 %>%
+  filter(establishment_type %in% ET)
+
+view(food_retailNY_SF3)
+
+```
+
+
+```{r}
+# Aggregate the NYC food retails store data (points) to the zip code data...specific to food retail
+food_retails_zipSummary <- food_retailNY_SF3 %>%
+  group_by(zip_code)%>%
+  summarise(Total_Stores = n(),
+            .groups = 'drop')
+
+view(food_retails_zipSummary)
+
+```
+
+
+## sTEP 3. Aggregate the NYC health facilities (points) to the zip code data. Similarly, choose appropriate subtypes such as nursing homes from the facilities.
+
+```{r}
+# Add NYC health facilties data (points)
+HealthFacilties_data <- read.csv("data/hw_data/NYS_Health_Facility.csv")
+
+# Clean data
+HealthFacilties_data <- clean_names(HealthFacilties_data)
+str(HealthFacilties_data)
+
+```
+
+```{r}
+# Turning health facilties csv into sf. 
+
+#Process the location column using stringr
+leftPos <- stringr::str_locate(HealthFacilties_data$facility_location, "\\(")[,1]
+rghtPos <- stringr::str_locate(HealthFacilties_data$facility_location, "\\)")[,1]
+
+# Get the coordinates text
+HealthFacilties_data$facility_location %>% stringr::str_sub(leftPos+1, rghtPos -1) -> HealthFacilties_data$coords
+cmmaPos <- stringr::str_locate(HealthFacilties_data$coords, ", ")
+
+#Get the numeric coordinates
+HealthFacilties_data$Y <- stringr::str_sub(HealthFacilties_data$coords, 1, cmmaPos[,1]-1) %>% as.numeric()
+HealthFacilties_data$X <- stringr::str_sub(HealthFacilties_data$coords, cmmaPos[,2]+1) %>% as.numeric()
+
+# Take out the rows without coordinates and make a sf object
+st_as_sf(HealthFacilties_data %>% tidyr::drop_na(X, Y), coords = c('X', 'Y')) -> HealthFacilties_SF
+
+# Assign coordinate system
+st_crs(HealthFacilties_SF) <- 4326
+
+view(HealthFacilties_SF)
+```
+
+
+```{r}
+# Filter appropriate subtypes such as nursing homes from the facilities. 
+## HF includes hospitals, clinics, and mdeical centers.
+
+HF <- c("Diagnostic and Treatment Center","Hospital Extension Clinic","Hospital","Diagnostic and Treatment Center Extension Clinic","Primary Care Hospital - Critical Access Hospital Extension Clinic", "Primary Care Hospital - Critical Access Hospital")
+
+HF_SF <- HealthFacilties_SF %>%
+  filter(description %in% HF)
+
+view(HF_SF)
+
+```
+
+```{r}
+#Create sf objects from geographic coordinates for NYC
+
+NYC_HealthFacilties_SF <- HF_SF %>%
+  filter(facility_county %in% c("Bronx", "Kings","Queens", "New York","Richmond"))
+
+view(NYC_HealthFacilties_SF)
+```
+
+
+## Step 4. Join the Census ACS population, race, and age data to the NYC Planning Census Tract Data.
+
+## Step 5: Aggregate the ACS census data to zip code area data.
+
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. 

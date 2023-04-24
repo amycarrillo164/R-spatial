@@ -1,0 +1,153 @@
+---
+title: "GTECH78520_23S_week10_ac12980"
+author: "Amy Carrillo"
+date: "4-21-2023"
+output: html_document
+---
+
+libraries
+```{r}
+library(sf)
+library(tidyverse)
+library(janitor)
+library(stringr)
+library(mapview)
+
+```
+
+## Step 2. Read the NYC postal areas in Shapefiles into sf objects. As NYC DOH publishes COVID-19 data by zip code, we will utilize the postal area data later.
+
+```{r}
+# Set working directory
+wd <- dirname(rstudioapi::getActiveDocumentContext()$path)
+setwd(wd)
+
+```
+
+```{r}
+# add NYC zip code shapefile
+zipcode <- st_read("data/hw_data/ZIP_CODE_040114.shp")
+```
+
+## sTEP 3. Read and process the NYS health facilities spreadsheet data. Create sf objects from geographic coordinates.
+
+```{r}
+# Add NYC health facilties data (points)
+HealthFacilties_data <- read.csv("data/hw_data/NYS_Health_Facility.csv")
+
+# Clean data
+HealthFacilties_data <- clean_names(HealthFacilties_data)
+```
+
+```{r}
+# Turning health facilties csv into sf. 
+
+# Process the location column using stringr
+leftPos <- stringr::str_locate(HealthFacilties_data$facility_location, "\\(")[,1]
+rghtPos <- stringr::str_locate(HealthFacilties_data$facility_location, "\\)")[,1]
+
+# Get the coordinates text
+HealthFacilties_data$facility_location %>% stringr::str_sub(leftPos+1, rghtPos -1) -> HealthFacilties_data$coords
+cmmaPos <- stringr::str_locate(HealthFacilties_data$coords, ", ")
+
+#Get the numeric coordinates
+HealthFacilties_data$Y <- stringr::str_sub(HealthFacilties_data$coords, 1, cmmaPos[,1]-1) %>% as.numeric()
+HealthFacilties_data$X <- stringr::str_sub(HealthFacilties_data$coords, cmmaPos[,2]+1) %>% as.numeric()
+
+# Take out the rows without coordinates and make a sf object
+st_as_sf(HealthFacilties_data %>% tidyr::drop_na(X, Y), coords = c('X', 'Y')) -> HealthFacilties_SF
+
+# Assign coordinate system
+st_crs(HealthFacilties_SF) <- 4326
+
+view(HealthFacilties_SF)
+```
+
+
+```{r}
+#Create sf objects from geographic coordinates for NYC
+
+NYC_HealthFacilties_SF <- HealthFacilties_SF %>%
+  filter(facility_county %in% c("Bronx", "Kings","Queens", "New York","Richmond"))
+
+view(NYC_HealthFacilties_SF)
+```
+
+
+## Step 4. Read and process the NYS retail food stores data. Create sf objects from geographic coordinates for NYC.
+
+```{r}
+# Add NYC food retails store data (points)
+food_retails_xy <- read.csv("data/hw_data/nys_retail_food_store_xy.csv", fileEncoding = "Latin1", check.names = F)
+
+# Clean data
+food_retails_xy <- clean_names(food_retails_xy)
+
+food_retails_NY <- food_retails_xy %>%
+  filter(zip_code > 7000) %>%
+  filter(i_county %in% c("Bronx", "Kings","Queens", "New York","Richmond")) %>%
+  filter(!is.na(x)) %>%
+  filter(!is.na(y))
+
+```
+
+
+```{r}
+# Turning csv into sf. Process the location column using stringr
+st_as_sf(food_retails_NY %>% tidyr::drop_na(x, y), coords = c('x', 'y')) -> food_retailsNY_SF
+
+# Assign coordinate system
+st_crs(food_retailsNY_SF) <- 4326
+
+```
+
+## Step 5. Use simple mapping method, either based on ggmap+ggplot or mapview, with a basemap to verify the above datasets in terms of their geometry locations
+
+### Zip codes for NYC map
+
+```{r}
+mapview(zipcode, zcol = "COUNTY")
+
+```
+
+
+## Food Retail Map
+
+```{r}
+mapview(food_retailsNY_SF)
+
+```
+
+## Health Facilties Map
+
+```{r}
+NYC_HF_SF2 <- NYC_HealthFacilties_SF %>%
+  filter(facility_latitude > "0.00000")
+
+mapview(NYC_HF_SF2, zcol = "description")
+
+```
+
+STEP 7: Save the three sf objects in a RData file or in a single GeoPackage file/database
+
+```{r}
+#save as a RData file
+saveRDS(NYC_HealthFacilties_SF, "data/SF/NYC_HealthFacilties_SF.rds")
+saveRDS(food_retailsNY_SF, "data/SF/NYC_FoodRetail_SF.rds")
+saveRDS(zipcode, "data/SF/NYC_Zipcode_SF.rds")
+
+```
+
+```{r}
+# Save as a GeoPackage file
+st_write(NYC_HealthFacilties_SF, "data/HW10.gpkg", "NYC_HealthFacilties_SF")
+st_write(food_retailsNY_SF, "data/HW10.gpkg", "NYC_FoodRetail_SF")
+st_write(zipcode, "data/HW10.gpkg", "NYC_Zipcode_SF")
+
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. 
