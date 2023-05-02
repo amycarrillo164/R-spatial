@@ -1,7 +1,7 @@
 ---
-title: "GTECH78520_23S_week11_ac12980"
+title: "GTECH78520_23S_week11_24351622"
 author: "Amy Carrillo"
-date: "4-21-2023"
+date: "5-01-2023"
 output: html_document
 ---
 
@@ -12,33 +12,90 @@ library(tidyverse)
 library(janitor)
 library(stringr)
 library(mapview)
+library(purrr)
 
 ```
-
-## Step 1. Join the COVID-19 data to the NYC zip code area data (sf or sp polygons).
 
 ```{r}
 # Set working directory
 wd <- dirname(rstudioapi::getActiveDocumentContext()$path)
 setwd(wd)
+```
+
+### Part 1. Join the COVID-19 data to the NYC zip code area data (sf or sp polygons).
+
+#### Adding data and data clean-up
+```{r}
+# Add NYC zip code shapefile
+zipcode_data <- st_read("data/hw_data/ZIP_CODE_040114.shp")
+zipcode_data <- clean_names(zipcode_data)
+zipcode_data$zipcode = as.numeric(as.character(zipcode_data$zipcode))
+
+# NYC zip code transform to 4326
+zipcode_data %>%
+  st_transform(4326)
+```
+
+```{r}
+# Add COVID-19 test data csv files
+COVID_TESTS_4_12_2020 <- read.csv("Data/R-Spatial_II_Lab/tests-by-zcta_2020_04_12.csv")
+COVID_TESTS_4_19_2020 <- read.csv("Data/R-Spatial_II_Lab/tests-by-zcta_2020_04_19.csv")
+COVID_TESTS_4_23_2021 <- read.csv("Data/R-Spatial_II_Lab/tests-by-zcta_2021_04_23.csv")
 
 ```
 
 ```{r}
-# add NYC zip code shapefile
-zipcode <- st_read("data/hw_data/ZIP_CODE_040114.shp")
-str(zipcode)
+# Clean names
+COVID_TESTS_4_12_2020 <- clean_names(COVID_TESTS_4_12_2020)
+COVID_TESTS_4_19_2020 <- clean_names(COVID_TESTS_4_19_2020)
+COVID_TESTS_4_23_2021 <- clean_names(COVID_TESTS_4_23_2021)
+```
+
+```{r}
+# Edit names to include the dates
+colnames(COVID_TESTS_4_12_2020) <- c('zipcode','4_12_20_Positive','4_12_20_Total', '4_12_20_cum_percpositive')
+
+colnames(COVID_TESTS_4_19_2020) <- c('zipcode','4_19_20_Positive','4_19_20_Total', '4_19_20_cum_percpositive')
 
 ```
-## STEP 2.Aggregate the NYC food retails store data (points) to the zip code data, so that we know how many retail stores in each zip code area. Note that not all locations are for food retail. And we need to choose the specific types according to the data.
 
+```{r}
+# Clean up 4_23_2021 data because it has more columns of data than the other covid datasets
+COVID_TESTS_4_23_2021_select <- COVID_TESTS_4_23_2021 %>%
+  select(modified_zcta, covid_case_count, total_covid_tests, percent_positive)
+
+colnames(COVID_TESTS_4_23_2021_select) <- c('zipcode','4_23_21_Positive','4_23_21_Total', '4_23_21_cum_percpositive')
+```
+
+#### Joining dataframes (zipcode_data, COVID_TESTS_4_12_2020, COVID_TESTS_4_19_2020, COVID_TESTS_4_23_2021_select)
+
+```{r}
+# Join multiple data.frames
+list_df = list(zipcode_data,COVID_TESTS_4_12_2020, COVID_TESTS_4_19_2020, COVID_TESTS_4_23_2021_select)
+
+Zipcode_CovidTests <- list_df %>% 
+  reduce(full_join, by='zipcode')%>%
+  drop_na()%>%
+  st_transform(crs = 4326)
+```
+
+#### Visual of joined dataframe
+```{r}
+mapview(Zipcode_CovidTests, zcol = c('4_12_20_cum_percpositive','4_19_20_cum_percpositive','4_23_21_cum_percpositive'), legend = FALSE)
+```
+
+### Part 2. Aggregate the NYC food retails store data (points) to the zip code data, so that we know how many retail stores in each zip code area. Note that not all locations are for food retail. And we need to choose the specific types according to the data.
+
+#### Adding data and data clean-up for food retails store data
 ```{r}
 # Add NYC food retails store data (points)
 food_retails_xy <- read.csv("data/hw_data/nys_retail_food_store_xy.csv", fileEncoding = "Latin1", check.names = F)
+```
 
-# Clean data
+
+```{r}
+# Clean data and select only NYC boroughs
 food_retails_xy <- clean_names(food_retails_xy)
-
 food_retails_NY <- food_retails_xy %>%
   filter(zip_code > 7000) %>%
   filter(i_county %in% c("Bronx", "Kings","Queens", "New York","Richmond")) %>%
@@ -54,49 +111,64 @@ st_as_sf(food_retails_NY %>% tidyr::drop_na(x, y), coords = c('x', 'y')) -> food
 
 # Assign coordinate system
 st_crs(food_retailsNY_SF) <- 4326
-
 ```
 
-Side Note: Establishment codes. https://data.ny.gov/Economic-Development/Retail-Food-Stores/9a8c-vfzj
-            C = Food manufacturer.
 
 ```{r}
+# First Trim off the extra white space in establishment_type columns
+food_retailNY_SF2 <- food_retailsNY_SF %>% 
+  mutate(across(where(is.character), str_trim))
+
 # Filter the data to only food retails
 ET = c("JAC", "JABC", "JABCP", "JACDK", "JABCDP", "JACD","JACFS", "JABCHK", "JACHK", "JABCK", "JACK", "JACDHK", "JACH", "JACDE", "JABCH", "JABCDH", "JABCD", "JACE", "JACI", "JACO ", "JACDH", "JABCG", "JACV", "JABCOP", "JAK ", "JACL", "JACG", "JABCDK", "JACZ", "JACW", "JCA", "JACDKM", "JABCGP", "JACN", "JABCKO", "JABCW", "JACDIK", "JACS", "JABCO", "JACDG", "JACP", "JABCHO", "JACHOP", "JACHO", "JACEW", "JDAC", "JKDAC", "JACHKO", "JACEK")
 
-# First trim off the extra white space in establishment_type columns
-food_retailNY_SF2 <- food_retailsNY_SF %>% 
-  mutate(across(where(is.character), str_trim))
   
 food_retailNY_SF3 <- food_retailNY_SF2 %>%
   filter(establishment_type %in% ET)
 
-view(food_retailNY_SF3)
-
 ```
 
-
+#### Find how many retail stores in each zip code area
 ```{r}
-# Aggregate the NYC food retails store data (points) to the zip code data...specific to food retail
-food_retails_zipSummary <- food_retailNY_SF3 %>%
-  group_by(zip_code)%>%
-  summarise(Total_Stores = n(),
-            .groups = 'drop')
+# Aggregate the NYC food retails store data (points) to the zip code data
+foodretail_zip <- Zipcode_CovidTests %>%
+  mutate(tract_area = st_area(geometry)) %>%
+  st_transform (4326) %>%
+  st_join(food_retailNY_SF3)
 
-view(food_retails_zipSummary)
+COVID_FoodRetail_ZIP <- foodretail_zip %>%
+  select(c('zipcode','county', 'st_fips', 'cty_fips', 'po_name', '4_12_20_Positive','4_12_20_Total', '4_12_20_cum_percpositive','4_19_20_Positive','4_19_20_Total', '4_19_20_cum_percpositive','4_23_21_Positive','4_23_21_Total', '4_23_21_cum_percpositive'))
+
+COVID_FoodRetail_ZIP <- COVID_FoodRetail_ZIP %>%
+  group_by(zipcode) %>%
+  mutate(Total_FoodRetail = n()) %>%
+  distinct(zipcode, .keep_all = TRUE)
 
 ```
 
+#### Visual for number of food retail stores by zipcode
+```{r}
+mapview(COVID_FoodRetail_ZIP, zcol = 'Total_FoodRetail')
+```
 
-## sTEP 3. Aggregate the NYC health facilities (points) to the zip code data. Similarly, choose appropriate subtypes such as nursing homes from the facilities.
 
+### Part 3. Aggregate the NYC health facilities (points) to the zip code data. Similarly, choose appropriate subtypes such as nursing homes from the facilities.
+
+#### Add data and data clean-up for health facilties
 ```{r}
 # Add NYC health facilties data (points)
 HealthFacilties_data <- read.csv("data/hw_data/NYS_Health_Facility.csv")
+```
 
+
+```{r}
 # Clean data
 HealthFacilties_data <- clean_names(HealthFacilties_data)
 str(HealthFacilties_data)
+
+# Filter data to only show NYC 5 boroughs
+HealthFacilties_data <- HealthFacilties_data %>%
+  filter(facility_county %in% c("Bronx", "Kings","Queens", "New York","Richmond"))
 
 ```
 
@@ -121,40 +193,197 @@ st_as_sf(HealthFacilties_data %>% tidyr::drop_na(X, Y), coords = c('X', 'Y')) ->
 # Assign coordinate system
 st_crs(HealthFacilties_SF) <- 4326
 
-view(HealthFacilties_SF)
 ```
-
 
 ```{r}
 # Filter appropriate subtypes such as nursing homes from the facilities. 
-## HF includes hospitals, clinics, and mdeical centers.
 
+# HF includes hospitals, clinics, and medical centers.
 HF <- c("Diagnostic and Treatment Center","Hospital Extension Clinic","Hospital","Diagnostic and Treatment Center Extension Clinic","Primary Care Hospital - Critical Access Hospital Extension Clinic", "Primary Care Hospital - Critical Access Hospital")
 
-HF_SF <- HealthFacilties_SF %>%
+NYC_HealthFacilties_SF <- HealthFacilties_SF %>%
   filter(description %in% HF)
 
-view(HF_SF)
+```
+
+#### Find how many health facilties in each zip code area
+```{r}
+# Aggregate the NYC health facilities (points) to the zip code data
+COVID_FR_HealthFacilties_zip <- COVID_FoodRetail_ZIP%>%
+  filter(zipcode >100) %>%
+  mutate(tract_area = st_area(geometry)) %>%
+  st_transform (4326) %>%
+  st_join(NYC_HealthFacilties_SF) %>%
+  select(c('zipcode','county', 'st_fips', 'cty_fips', 'po_name', '4_12_20_Positive','4_12_20_Total', '4_12_20_cum_percpositive','4_19_20_Positive','4_19_20_Total', '4_19_20_cum_percpositive','4_23_21_Positive','4_23_21_Total', '4_23_21_cum_percpositive','Total_FoodRetail')) %>%
+  group_by(zipcode) %>%
+  mutate(Total_HealthFacilities = n()) %>%
+  distinct(zipcode, .keep_all = TRUE)
+
+```
+
+#### Data visualization for number of health faciltiies by zip code
+```{r}
+mapview(COVID_FR_HealthFacilties_zip, zcol = 'Total_HealthFacilities')
+```
+
+### Part 4. Join the Census ACS population, race, and age data to the NYC Planning Census Tract Data.
+
+#### Adding data and data clean-up for NYC Planning Census Tract
+```{r}
+#Read NYC Planning Census Tract
+nyc_census <- st_read("Data/R-Spatial_II_Lab/2010 Census Tracts/geo_export_1dc7b645-647b-4806-b9a0-7b79660f120a.shp") 
+
+```
+```{r}
+# NYC Planning Census Tract: Create a county FIPS & census tract to later use for joining with ACS census data
+nyc_census <- nyc_census %>%
+  mutate(cntyFIPS = case_when(
+    boro_name == 'Bronx' ~ '005',
+    boro_name == 'Brooklyn' ~ '047',
+    boro_name == 'Manhattan' ~ '061',
+    boro_name == 'Queens' ~ '081',
+    boro_name == 'Staten Island' ~ '085'),
+    tractFIPS = paste(cntyFIPS, ct2010, sep=''))
+
+```
+
+#### Adding data and data clean-up for Census ACS data (population, race, and age data).
+```{r}
+# Read the Census ACS data
+ACS_census <- read.csv("Data/R-Spatial_II_Lab/ACSDP5Y2018.DP05_data_with_overlays_2020-04-22T132935.csv")
+```
+
+```{r}
+# Cleaning the data and selecting out population, race, and age data
+ACS_census2 <- ACS_census[-1,]
+
+#select out what we need
+categories = c("DP05_0001E","DP05_0024E","DP05_0002E","DP05_0003E","DP05_0037E","DP05_0038E","DP05_0039E","DP05_0067E","DP05_0052E","DP05_0071E","DP05_0087E")
+
+ACS_categories <- ACS_census2 %>%
+  select(c("GEO_ID", "NAME", categories)) %>%
+  rename("TotalPop"="DP05_0001E",
+         "ElderlyPop" = "DP05_0024E",
+         "MalePop" = "DP05_0002E",
+         "FemalePop" = "DP05_0003E",
+         "WhitePop" = "DP05_0037E",
+         "BlackPop" = "DP05_0038E",
+         "AmericanIndian" = "DP05_0039E",
+         "AsianPop" = "DP05_0067E",
+         "NativeHawaiian" = "DP05_0052E",
+         "HispanicPop" = "DP05_0071E",
+         "CitizenVotingAgePop" = "DP05_0087E") %>%
+  mutate(census_code = str_sub(GEO_ID, -9))
+```
+
+#### Joining the NYC Planning Census Tract and ACS Census Data
+```{r}
+# Attribute Join. Join the Census ACS population, race, and age data to the NYC Planning Census Tract Data.
+census_merge <- merge(nyc_census, ACS_categories, by.x = "tractFIPS", by.y = "census_code")
+
+census_merge <- na.omit(census_merge)
+```
+
+#### Data visualization for NYC Planning Census Tract and ACS Census Data
+```{r}
+mapview(census_merge, zcol = "boro_name")
+```
+
+
+### Part 5: Aggregate the ACS census data to zip code area data.
+
+#### Data set-up and clean-up
+```{r}
+# Create census centroids from census_merge file
+census_centroids <- census_merge %>%
+  st_centroid() %>%
+  st_transform(4326) 
+```
+```{r}
+# Make sure the dataframes are using  the same crs projection
+zipcode_4326 <- COVID_FR_HealthFacilties_zip %>%
+  st_transform(crs = 4326)
+
+census_c4326 <- census_centroids %>%
+  st_transform(crs = 4326)
+```
+
+```{r}
+# Make sure the data is numeric
+i <- c(16:25)
+census_c4326[,i] <- apply(census_c4326[,i],2,
+                      function(x) as.numeric(as.character(x)))
+  
+```
+
+#### Join all of the census_merge data to zip code area data with the addition of demographics data
+```{r}
+census_centroid_zip_merge <- st_join(zipcode_4326, census_c4326, join = st_contains) %>%
+  filter(zipcode > 100) %>%
+  group_by(zipcode)
+```
+
+#### Consolidated version of the covid data, food retail stores, location, and census demographics information by zipcode
+```{r}
+nyc_zipcode_demongraphics <- st_join(zipcode_4326, census_c4326, join = st_contains) %>%
+  filter(zipcode > 100) %>%
+  select(c('zipcode','county', 'st_fips', 'cty_fips', 'po_name', '4_12_20_Positive','4_12_20_Total', '4_12_20_cum_percpositive','4_19_20_Positive','4_19_20_Total', '4_19_20_cum_percpositive','4_23_21_Positive','4_23_21_Total', '4_23_21_cum_percpositive','Total_FoodRetail','Total_HealthFacilities', 'TotalPop','ElderlyPop','MalePop','FemalePop','WhitePop', 'BlackPop','AmericanIndian','AsianPop','NativeHawaiian','HispanicPop')) %>%
+  group_by(zipcode) %>%
+  mutate(
+        TotalPop = sum(TotalPop),
+        ElderlyPop = sum(ElderlyPop),
+        MalePop = sum(MalePop),
+        FemalePop = sum(FemalePop),
+        WhitePop = sum(WhitePop),
+        BlackPop = sum(BlackPop),
+        AmericanIndian = sum(AmericanIndian),
+        AsianPop = sum(AsianPop),
+        NativeHawaiian = sum(NativeHawaiian),
+        HispanicPop = sum(HispanicPop)) %>%
+  mutate(
+        ElderlyPop_pp = ((ElderlyPop/TotalPop)*100),
+        MalePop_pp = ((MalePop/TotalPop)*100),
+        FemalePop_pp = ((FemalePop/TotalPop)*100),
+        WhitePop_pp = ((WhitePop/TotalPop)*100),
+        BlackPop_pp = ((BlackPop/TotalPop)*100),
+        AmericanIndian_pp = ((AmericanIndian/TotalPop)*100),
+        AsianPop_pp = ((AsianPop/TotalPop)*100),
+        NativeHawaiian_pp = ((NativeHawaiian/TotalPop)*100),
+        HispanicPop_pp = ((HispanicPop/TotalPop)*100)) %>%
+  distinct(zipcode, .keep_all = TRUE)
 
 ```
 
 ```{r}
-#Create sf objects from geographic coordinates for NYC
-
-NYC_HealthFacilties_SF <- HF_SF %>%
-  filter(facility_county %in% c("Bronx", "Kings","Queens", "New York","Richmond"))
-
-view(NYC_HealthFacilties_SF)
+# clean datasets to get rid of NAs
+census_centroid_zip_merge <- na.omit(census_centroid_zip_merge)
+nyc_zipcode_demongraphics <-na.omit(nyc_zipcode_demongraphics)
 ```
 
 
-## Step 4. Join the Census ACS population, race, and age data to the NYC Planning Census Tract Data.
+#### Data visualization
+```{r}
+# Looking at the data
+head(nyc_zipcode_demongraphics)
+```
 
-## Step 5: Aggregate the ACS census data to zip code area data.
+```{r}
+# Testing out the new dataframe by looking at Hispanic population percentage rates by zipcode in NYC
+mapview(nyc_zipcode_demongraphics, zcol = "HispanicPop_pp")
+```
+
+### Output
+In the end, we should have the confirmed and tested cases of covid-19, numbers of specific types of food stores, numbers of specific types of health facilities, and population (total population, elderly, by race, etc.) at the zip code level. We should also have boroughs, names, etc. for each zip code area.
+
+```{r}
+# Confirmed and tested cases of covid-19
+view(Zipcode_CovidTests)
+# Numbers of specific types of food stores
+view(COVID_FoodRetail_ZIP)
+# Numbers of specific types of health facilities
+view(COVID_FR_HealthFacilties_zip)
+# MASTER DATASET. Population (total pop, race, elderly, etc.) at the zipcode level...We should also have boroughs, names, etc. for each zip code area.
+view(nyc_zipcode_demongraphics)
+```
 
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. 

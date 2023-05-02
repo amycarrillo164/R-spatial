@@ -2,7 +2,9 @@
 title: "GTECH78520_23S_week10_ac12980"
 author: "Amy Carrillo"
 date: "4-21-2023"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ### Download libraries:
@@ -106,7 +108,7 @@ st_crs(food_retailsNY_SF) <- 4326
 ## Step 5. 
 ### Use simple mapping method, either based on ggmap+ggplot or mapview, with a basemap to verify the above datasets in terms of their geometry locations
 
-Zip codes for NYC map
+### Zip codes for NYC map
 ```{r}
 mapview(zipcode, zcol = "COUNTY")
 
@@ -128,7 +130,8 @@ mapview(NYC_HF_SF2, zcol = "description")
 
 ```
 
-STEP 7: Save the three sf objects in a RData file or in a single GeoPackage file/database
+## Step 6. 
+### Save the three sf objects in a RData file or in a single GeoPackage file/database.
 
 ```{r}
 #save as a RData file
