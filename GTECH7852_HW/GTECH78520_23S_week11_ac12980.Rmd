@@ -134,7 +134,11 @@ food_retailNY_SF3 <- food_retailNY_SF2 %>%
 foodretail_zip <- Zipcode_CovidTests %>%
   mutate(tract_area = st_area(geometry)) %>%
   st_transform (4326) %>%
-  st_join(food_retailNY_SF3)
+  st_join(food_retailNY_SF3) 
+
+# Another way of doing that ^
+# nycFoodStoresSF %>% dplyr::filter(stringr:str_detect(Establ_T, '[AJD]'))
+# st_join(zpNYC, ., join = st_contains)
 
 COVID_FoodRetail_ZIP <- foodretail_zip %>%
   select(c('zipcode','county', 'st_fips', 'cty_fips', 'po_name', '4_12_20_Positive','4_12_20_Total', '4_12_20_cum_percpositive','4_19_20_Positive','4_19_20_Total', '4_19_20_cum_percpositive','4_23_21_Positive','4_23_21_Total', '4_23_21_cum_percpositive'))
