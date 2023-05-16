@@ -113,6 +113,7 @@ st_as_sf(food_retails_NY %>% tidyr::drop_na(x, y), coords = c('x', 'y')) -> food
 st_crs(food_retailsNY_SF) <- 4326
 ```
 
+Previously...
 
 ```{r}
 # First Trim off the extra white space in establishment_type columns
@@ -125,6 +126,19 @@ ET = c("JAC", "JABC", "JABCP", "JACDK", "JABCDP", "JACD","JACFS", "JABCHK", "JAC
   
 food_retailNY_SF3 <- food_retailNY_SF2 %>%
   filter(establishment_type %in% ET)
+```
+
+After edits...
+
+```{r}
+#new way  
+covid_food_retail_NYC <- food_retailsNY_SF %>% 
+  dplyr::filter(stringr::str_detect(establishment_type, '[AJD]')) %>%
+  sf::st_join(Zipcode_CovidTests, ., join= st_contains) %>%
+  group_by(zipcode) %>%
+  summarise(FoodStoreNum = n()) %>% 
+  magrittr::extract('FoodStoreNum') %>% 
+  plot(breaks = "jenks", main="Number of Food Stores")
 
 ```
 
@@ -136,9 +150,6 @@ foodretail_zip <- Zipcode_CovidTests %>%
   st_transform (4326) %>%
   st_join(food_retailNY_SF3) 
 
-# Another way of doing that ^
-# nycFoodStoresSF %>% dplyr::filter(stringr:str_detect(Establ_T, '[AJD]'))
-# st_join(zpNYC, ., join = st_contains)
 
 COVID_FoodRetail_ZIP <- foodretail_zip %>%
   select(c('zipcode','county', 'st_fips', 'cty_fips', 'po_name', '4_12_20_Positive','4_12_20_Total', '4_12_20_cum_percpositive','4_19_20_Positive','4_19_20_Total', '4_19_20_cum_percpositive','4_23_21_Positive','4_23_21_Total', '4_23_21_cum_percpositive'))
@@ -152,7 +163,7 @@ COVID_FoodRetail_ZIP <- COVID_FoodRetail_ZIP %>%
 
 #### Visual for number of food retail stores by zipcode
 ```{r}
-mapview(COVID_FoodRetail_ZIP, zcol = 'Total_FoodRetail')
+plot(COVID_FoodRetail_ZIP, zcol = 'Total_FoodRetail')
 ```
 
 
@@ -206,7 +217,10 @@ st_crs(HealthFacilties_SF) <- 4326
 HF <- c("Diagnostic and Treatment Center","Hospital Extension Clinic","Hospital","Diagnostic and Treatment Center Extension Clinic","Primary Care Hospital - Critical Access Hospital Extension Clinic", "Primary Care Hospital - Critical Access Hospital")
 
 NYC_HealthFacilties_SF <- HealthFacilties_SF %>%
-  filter(description %in% HF)
+  filter(description %in% HF) 
+
+
+st_write(NYC_HealthFacilties_SF, "Data/R-Spatial_III_Lab/healthfacilities.gpkg", "NYC_HealthFacilties_SF")
 
 ```
 
@@ -227,7 +241,7 @@ COVID_FR_HealthFacilties_zip <- COVID_FoodRetail_ZIP%>%
 
 #### Data visualization for number of health faciltiies by zip code
 ```{r}
-mapview(COVID_FR_HealthFacilties_zip, zcol = 'Total_HealthFacilities')
+plot(COVID_FR_HealthFacilties_zip, zcol = 'Total_HealthFacilities')
 ```
 
 ### Part 4. Join the Census ACS population, race, and age data to the NYC Planning Census Tract Data.
@@ -277,7 +291,7 @@ ACS_categories <- ACS_census2 %>%
          "NativeHawaiian" = "DP05_0052E",
          "HispanicPop" = "DP05_0071E",
          "CitizenVotingAgePop" = "DP05_0087E") %>%
-  mutate(census_code = str_sub(GEO_ID, -9))
+  mutate(census_code = str_sub(GEO_ID, -9, -1))
 ```
 
 #### Joining the NYC Planning Census Tract and ACS Census Data
@@ -290,7 +304,7 @@ census_merge <- na.omit(census_merge)
 
 #### Data visualization for NYC Planning Census Tract and ACS Census Data
 ```{r}
-mapview(census_merge, zcol = "boro_name")
+plot(census_merge, zcol = "boro_name")
 ```
 
 
@@ -373,7 +387,7 @@ head(nyc_zipcode_demongraphics)
 
 ```{r}
 # Testing out the new dataframe by looking at Hispanic population percentage rates by zipcode in NYC
-mapview(nyc_zipcode_demongraphics, zcol = "HispanicPop_pp")
+plot(nyc_zipcode_demongraphics, zcol = "HispanicPop_pp")
 ```
 
 ### Output
@@ -390,4 +404,7 @@ view(COVID_FR_HealthFacilties_zip)
 view(nyc_zipcode_demongraphics)
 ```
 
+```{r}
+st_write(nyc_zipcode_demongraphics, "Data/R-Spatial_III_Lab/HW11.gpkg", "NYC_Demographics")
+```
 
